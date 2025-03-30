@@ -278,12 +278,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Function to update totals directly from snapshot
+    function updateTotalsFromSnapshot(snapshot) {
+        let total = 0;
+        snapshot.forEach(docSnap => {
+            const expense = docSnap.data();
+            total += parseFloat(expense.amount);
+        });
+        document.getElementById('total-display').textContent = `HouseHold Total: $${total.toFixed(2)}`;
+    }
+
     onSnapshot(
         collection(db, "expenses"),
-        { includeMetadataChanges: true },
         snapshot => {
-            console.log("Snapshot fired, number of documents:", snapshot.docs.length);
             updateExpenseListFromSnapshot(snapshot);
+            updateTotalsFromSnapshot(snapshot); // ← Recalculate and update totals
         }
     );
 });
