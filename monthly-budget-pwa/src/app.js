@@ -43,42 +43,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     loadMonthlyGoals();
 
-    expenseForm.addEventListener('submit', async (event) => {
+    expenseForm.addEventListener('submit', (event) => {
         event.preventDefault();
         const formData = new FormData(expenseForm);
         const person = formData.get('person');
         const name = formData.get('name');
         const category = formData.get('category');
         const amount = parseFloat(formData.get('amount'));
-        
-        // Get the expense date from the calendar input:
         const expenseDate = formData.get('expense-date') || new Date().toISOString().slice(0, 10);
 
         if (!person || !category || isNaN(amount) || !expenseDate) {
             console.error('Invalid input:', { person, name, category, amount, expenseDate });
             return;
         }
-        
-        try {
-            await addDoc(collection(db, "expenses"), {
-                person,
-                name,
-                category,
-                amount,
-                date: expenseDate,  // Save expense date
-                timestamp: new Date()
-            });
-            console.log("Expense added to Firebase");
-        } catch (error) {
-            console.error("Error adding expense to Firebase:", error);
-        }
-        
-        calculator.addExpense(person, name, category, amount, expenseDate);
-        updateExpenseList();
+
+        // Prepare the expense data and mark it as pending locally:
+        const expenseData = {
+            person: person.toUpperCase(),
+            name,
+            category,
+            amount,
+            date: expenseDate,
+            pending: true  // mark as pending until confirmed by Firestore
+        };
+
+        // Immediately update local state and UI (so the user sees the expense even offline)
+        calculator.addExpense(expenseData.person, expenseData.name, expenseData.category, expenseData.amount, expenseData.date);
+        updateExpenseList();       // your function that renders calculator.expenses on screen
         updateTotal();
         updateIndividualTotals();
-        updateMonthlyTotals(); // NEW: Update the monthly summary
+        updateMonthlyTotals();
         expenseForm.reset();
+
+        // Now try to add the expense to Firestore
+        addDoc(collection(db, "expenses"), {
+            person,
+            name,
+            category,
+            amount,
+            date: expenseDate,
+            timestamp: new Date()
+        }).then(docRef => {
+            console.log("Expense added to Firebase", docRef.id);
+            // Optionally update local state to mark this expense as no longer pending, 
+            // or let your snapshot listener handle it.
+        }).catch(error => {
+            console.error("Error adding expense to Firebase:", error);
+            // If an error occurs (or if offline), the expense remains pending until connectivity is restored.
+        });
     });
 
     function updateExpenseList() {
@@ -231,29 +243,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to update the expense list UI
     function updateExpenseListFromSnapshot(snapshot) {
-        expenseList.innerHTML = ''; // Clear existing entries
-
+        expenseList.innerHTML = '';
         snapshot.forEach(docSnapshot => {
             const expense = docSnapshot.data();
-            // Check if this document is still pending to be written to the server
+            // hasPendingWrites indicates if the document is still local and not yet synced.
             const isPending = docSnapshot.metadata.hasPendingWrites;
-
             const li = document.createElement('li');
             li.textContent = `${expense.person} spent $${expense.amount.toFixed(2)} on ${expense.category} on ${expense.date}`;
-            // Append pending status if applicable:
-            if (isPending) {
-                li.textContent += ' - Pending';
-                li.style.color = 'orange'; // Use a visual indicator (e.g. orange text)
-            } else {
-                li.textContent += ' - Added Successfully';
-                li.style.color = 'green';
-            }
+            li.textContent += isPending ? ' - Pending' : ' - Added Successfully';
+            li.style.color = isPending ? 'orange' : 'green';
             expenseList.appendChild(li);
         });
     }
 
-    // Set up a real-time listener on your "expenses" collection
-    onSnapshot(collection(db, "expenses"), (snapshot) => {
+    onSnapshot(collection(db, "expenses"), snapshot => {
         updateExpenseListFromSnapshot(snapshot);
     });
 });
