@@ -3,14 +3,15 @@ function BudgetCalculator() {
     this.monthlyGoals = {}; // Mapping of person (upper case) => monthly goal value
 }
 
-BudgetCalculator.prototype.addExpense = function(person, description, category, amount, date) {
+BudgetCalculator.prototype.addExpense = function(person, description, category, amount, date, pending = false) {
     // Always convert person to upper case:
     this.expenses.push({
         person: person.toUpperCase(),
         description: description,
         category: category,
         amount: parseFloat(amount),
-        date: date  // Store the expense date
+        date: date,  // Store the expense date
+        pending: pending
     });
 };
 

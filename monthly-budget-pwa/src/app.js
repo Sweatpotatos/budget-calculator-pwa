@@ -63,19 +63,19 @@ document.addEventListener('DOMContentLoaded', () => {
             name,
             category,
             amount,
-            date: expenseDate,
-            pending: true  // mark as pending until confirmed by Firestore
+            date: expenseDate
         };
 
-        // Immediately update local state and UI (so the user sees the expense even offline)
-        calculator.addExpense(expenseData.person, expenseData.name, expenseData.category, expenseData.amount, expenseData.date);
-        updateExpenseList();       // your function that renders calculator.expenses on screen
+        // Immediately update local state and UI.
+        // We pass "true" for the pending flag.
+        calculator.addExpense(expenseData.person, expenseData.name, expenseData.category, expenseData.amount, expenseData.date, true);
+        updateExpenseList();       // This uses calculator.getExpenses() to render the list.
         updateTotal();
         updateIndividualTotals();
         updateMonthlyTotals();
         expenseForm.reset();
 
-        // Now try to add the expense to Firestore
+        // Now try to add the expense to Firestore.
         addDoc(collection(db, "expenses"), {
             person,
             name,
@@ -85,11 +85,10 @@ document.addEventListener('DOMContentLoaded', () => {
             timestamp: new Date()
         }).then(docRef => {
             console.log("Expense added to Firebase", docRef.id);
-            // Optionally update local state to mark this expense as no longer pending, 
-            // or let your snapshot listener handle it.
+            // Optionally, you might update the local state for this expense here.
         }).catch(error => {
             console.error("Error adding expense to Firebase:", error);
-            // If an error occurs (or if offline), the expense remains pending until connectivity is restored.
+            // If offline, Firestore's offline persistence queues the write.
         });
     });
 
@@ -98,8 +97,11 @@ document.addEventListener('DOMContentLoaded', () => {
         expenseList.innerHTML = '';
         expenses.forEach(expense => {
             const li = document.createElement('li');
-            const descriptionText = expense.description ? ` (${expense.description})` : '';
+            let descriptionText = expense.description ? ` (${expense.description})` : '';
             li.textContent = `${expense.person} spent $${expense.amount.toFixed(2)} on ${expense.category}${descriptionText} on ${expense.date}`;
+            // Check for a pending flag in the local data:
+            li.textContent += expense.pending ? ' - Pending' : '';
+            li.style.color = expense.pending ? 'orange' : 'green';
             expenseList.appendChild(li);
         });
     }
