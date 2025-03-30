@@ -1,5 +1,5 @@
 import BudgetCalculator from './budgetCalculator.js';
-import { db, collection, addDoc, getDocs, setDoc, doc, onSnapshot } from './firebase.js';
+import { db, collection, addDoc, getDocs, setDoc, doc, onSnapshot, deleteDoc } from './firebase.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const expenseForm = document.getElementById('expense-form');
@@ -243,17 +243,37 @@ document.addEventListener('DOMContentLoaded', () => {
         monthlyGoalForm.reset();
     });
 
+    // Function to delete an expense document
+    async function deleteExpense(expenseId) {
+        try {
+            await deleteDoc(doc(db, "expenses", expenseId));
+            console.log(`Deleted expense doc: ${expenseId}`);
+        } catch (error) {
+            console.error(`Error deleting expense: ${error}`);
+        }
+    }
+
     // Function to update the expense list UI
     function updateExpenseListFromSnapshot(snapshot) {
         expenseList.innerHTML = '';
         snapshot.forEach(docSnapshot => {
             const expense = docSnapshot.data();
-            // hasPendingWrites indicates if the document is still local and not yet synced.
+            const expenseId = docSnapshot.id;
             const isPending = docSnapshot.metadata.hasPendingWrites;
+
             const li = document.createElement('li');
             li.textContent = `${expense.person} spent $${expense.amount.toFixed(2)} on ${expense.category} on ${expense.date}`;
             li.textContent += isPending ? ' - Pending' : ' - Added Successfully';
             li.style.color = isPending ? 'orange' : 'green';
+
+            // Add a delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', () => {
+                deleteExpense(expenseId);
+            });
+
+            li.appendChild(deleteBtn);
             expenseList.appendChild(li);
         });
     }
