@@ -258,7 +258,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    onSnapshot(collection(db, "expenses"), snapshot => {
-        updateExpenseListFromSnapshot(snapshot);
-    });
+    onSnapshot(
+        collection(db, "expenses"),
+        { includeMetadataChanges: true },
+        snapshot => {
+            updateExpenseListFromSnapshot(snapshot);
+        }
+    );
 });
