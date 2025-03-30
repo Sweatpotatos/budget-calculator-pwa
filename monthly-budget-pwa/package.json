@@ -1,0 +1,35 @@
+{
+  "name": "monthly-budget-pwa",
+  "version": "1.0.0",
+  "description": "A Progressive Web App for calculating monthly budgets.",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "serve public",
+    "build": "webpack --mode production",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "webpack": "^5.0.0",
+    "webpack-cli": "^4.0.0",
+    "jest": "^26.0.0"
+  },
+  "devDependencies": {
+    "serve": "^11.3.0"
+  },
+  "keywords": [
+    "PWA",
+    "budget",
+    "calculator"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "homepage": "https://github.com/yourusername/monthly-budget-pwa",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/monthly-budget-pwa.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/monthly-budget-pwa/issues"
+  }
+}

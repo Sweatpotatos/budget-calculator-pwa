@@ -1,0 +1,19 @@
+{
+  "name": "budget-calculator-pwa",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack"
+  },
+  "dependencies": {
+    "firebase": "^9.x.x"
+  },
+  "devDependencies": {
+    "babel-loader": "^8.x.x",
+    "webpack": "^5.x.x",
+    "webpack-cli": "^4.10.0"
+  },
+  "author": "",
+  "license": "ISC"
+}
