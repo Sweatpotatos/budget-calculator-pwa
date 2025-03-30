@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs, setDoc, doc, enableIndexedDbPersistence } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDocs, setDoc, doc, enableIndexedDbPersistence, onSnapshot } from "firebase/firestore";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCg7xzeSJO7BtZgmetFzLHfRruhcDDISBI",
@@ -26,4 +26,4 @@ enableIndexedDbPersistence(db)
     }
   });
 
-export { db, collection, addDoc, getDocs, setDoc, doc };
+export { db, collection, addDoc, getDocs, setDoc, doc, onSnapshot };

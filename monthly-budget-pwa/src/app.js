@@ -262,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         collection(db, "expenses"),
         { includeMetadataChanges: true },
         snapshot => {
+            console.log("Snapshot fired, number of documents:", snapshot.docs.length);
             updateExpenseListFromSnapshot(snapshot);
         }
     );
