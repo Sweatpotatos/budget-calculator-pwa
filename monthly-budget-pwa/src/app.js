@@ -1,5 +1,5 @@
 import BudgetCalculator from './budgetCalculator.js';
-import { db, collection, addDoc, getDocs, setDoc, doc, onSnapshot } from './firebase.js';
+import { db, collection, addDoc, getDocs, setDoc, doc, deleteDoc, onSnapshot } from './firebase.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const expenseForm = document.getElementById('expense-form');
@@ -27,22 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     loadExpenses();
 
-    // New: load previously stored monthly goals from Firebase:
-    async function loadMonthlyGoals() {
-        try {
-            const querySnapshot = await getDocs(collection(db, "monthlyGoals"));
-            querySnapshot.forEach(goalDoc => {
-                const goalData = goalDoc.data(); // expected structure: { person: "MANDY", goal: 50 }
-                calculator.monthlyGoals[goalData.person] = parseFloat(goalData.goal);
-            });
-            updateMonthlyTotals();
-            // Optionally pre-fill the goal form if needed.
-        } catch (error) {
-            console.error("Error loading monthly goals:", error);
-        }
-    }
-    loadMonthlyGoals();
-
+    // Add Expense Form Submission (with optimistic local update):
     expenseForm.addEventListener('submit', (event) => {
         event.preventDefault();
         const formData = new FormData(expenseForm);
@@ -57,25 +42,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Prepare the expense data and mark it as pending locally:
-        const expenseData = {
-            person: person.toUpperCase(),
-            name,
-            category,
-            amount,
-            date: expenseDate
-        };
-
-        // Immediately update local state and UI.
-        // We pass "true" for the pending flag.
-        calculator.addExpense(expenseData.person, expenseData.name, expenseData.category, expenseData.amount, expenseData.date, true);
-        updateExpenseList();       // This uses calculator.getExpenses() to render the list.
+        // Immediately add the new expense to local state (mark as pending):
+        calculator.addExpense(person, name, category, amount, expenseDate, true);
+        updateExpenseList();
         updateTotal();
         updateIndividualTotals();
         updateMonthlyTotals();
         expenseForm.reset();
 
-        // Now try to add the expense to Firestore.
+        // Queue the write to Firestore:
         addDoc(collection(db, "expenses"), {
             person,
             name,
@@ -85,26 +60,64 @@ document.addEventListener('DOMContentLoaded', () => {
             timestamp: new Date()
         }).then(docRef => {
             console.log("Expense added to Firebase", docRef.id);
-            // Optionally, you might update the local state for this expense here.
         }).catch(error => {
             console.error("Error adding expense to Firebase:", error);
-            // If offline, Firestore's offline persistence queues the write.
         });
     });
 
-    function updateExpenseList() {
-        const expenses = calculator.getExpenses();
+    // Delete an expense by its document id:
+    async function deleteExpense(expenseId) {
+        try {
+            await deleteDoc(doc(db, "expenses", expenseId));
+            console.log("Expense deleted:", expenseId);
+        } catch (error) {
+            console.error("Error deleting expense:", error);
+        }
+    }
+
+    // Updated function to render expenses from Firestore snapshot
+    function updateExpenseListFromSnapshot(snapshot) {
         expenseList.innerHTML = '';
-        expenses.forEach(expense => {
-            const li = document.createElement('li');
-            let descriptionText = expense.description ? ` (${expense.description})` : '';
-            li.textContent = `${expense.person} spent $${expense.amount.toFixed(2)} on ${expense.category}${descriptionText} on ${expense.date}`;
-            // Check for a pending flag in the local data:
-            li.textContent += expense.pending ? ' - Pending' : '';
-            li.style.color = expense.pending ? 'orange' : 'green';
-            expenseList.appendChild(li);
+        snapshot.forEach(docSnapshot => {
+            const expense = docSnapshot.data();
+            const expenseId = docSnapshot.id;
+            // Use metadata to detect pending writes (if any)
+            const isPending = docSnapshot.metadata.hasPendingWrites;
+
+            // Create a card for the expense:
+            const card = document.createElement('div');
+            card.className = 'expense-card';
+            card.innerHTML = `
+                <div class="expense-details">
+                    <span class="expense-person"><strong>${expense.person}</strong></span>
+                    <span class="expense-amount">$${expense.amount.toFixed(2)}</span>
+                    <span class="expense-meta"> on ${expense.category}<br>Date: ${expense.date}</span>
+                    <span class="expense-status" style="color: ${isPending ? 'orange' : 'green'};">
+                        ${isPending ? 'Pending' : 'Added Successfully'}
+                    </span>
+                </div>
+                <button class="delete-btn" data-id="${expenseId}">Delete</button>
+            `;
+            expenseList.appendChild(card);
+        });
+
+        // Attach listeners on delete buttons:
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const id = e.target.getAttribute('data-id');
+                deleteExpense(id);
+            });
         });
     }
+
+    // Set up a real-time listener that includes metadata changes
+    onSnapshot(
+        collection(db, "expenses"),
+        { includeMetadataChanges: true },
+        snapshot => {
+            updateExpenseListFromSnapshot(snapshot);
+        }
+    );
 
     function updateTotal() {
         const total = calculator.calculateTotal();
@@ -126,31 +139,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateMonthlyTotals() {
-        // Use current month and year (or pass them in as needed)
         const now = new Date();
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
-
-        // Create start and end dates for the month:
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 0);
-
-        // Format the dates as strings (change options if needed)
         const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
         const formattedStart = startDate.toLocaleDateString(undefined, options);
         const formattedEnd = endDate.toLocaleDateString(undefined, options);
-
-        // Calculate monthly totals using the BudgetCalculator method:
         const monthlyTotals = calculator.calculateMonthlyTotals(month, year);
         const monthlyTotalsContainer = document.getElementById('monthly-totals');
 
-        // Clear previous totals & add a heading that shows the summary range:
         monthlyTotalsContainer.innerHTML = `<h3>Monthly Totals (from ${formattedStart} to ${formattedEnd}):</h3>`;
-        
         Object.entries(monthlyTotals).forEach(([person, total]) => {
-            // Retrieve the monthly goal for the person (if set)
             const goal = calculator.monthlyGoals[person] || 0;
-            // Build the display text: include goal if available
             let text = `${person}: $${total.toFixed(2)}`;
             if (goal) {
                 text += ` (Goal: $${goal.toFixed(2)})`;
@@ -242,27 +244,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         monthlyGoalForm.reset();
     });
-
-    // Function to update the expense list UI
-    function updateExpenseListFromSnapshot(snapshot) {
-        expenseList.innerHTML = '';
-        snapshot.forEach(docSnapshot => {
-            const expense = docSnapshot.data();
-            // hasPendingWrites indicates if the document is still local and not yet synced.
-            const isPending = docSnapshot.metadata.hasPendingWrites;
-            const li = document.createElement('li');
-            li.textContent = `${expense.person} spent $${expense.amount.toFixed(2)} on ${expense.category} on ${expense.date}`;
-            li.textContent += isPending ? ' - Pending' : ' - Added Successfully';
-            li.style.color = isPending ? 'orange' : 'green';
-            expenseList.appendChild(li);
-        });
-    }
-
-    onSnapshot(
-        collection(db, "expenses"),
-        { includeMetadataChanges: true },
-        snapshot => {
-            updateExpenseListFromSnapshot(snapshot);
-        }
-    );
 });

@@ -118,3 +118,55 @@ body {
 .calc-buttons button:hover {
     background-color: #005bb5;
 }
+
+/* Expense card styling */
+.expense-card {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.expense-details {
+    flex: 1;
+}
+
+.expense-person {
+    font-size: 1.1rem;
+}
+
+.expense-amount {
+    font-size: 1.2rem;
+    color: #007aff;
+    margin-left: 10px;
+}
+
+.expense-meta {
+    display: block;
+    font-size: 0.9rem;
+    color: #555;
+    margin-top: 5px;
+}
+
+.expense-status {
+    font-size: 0.9rem;
+    margin-left: 10px;
+}
+
+.delete-btn {
+    background-color: #ff3b30;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.delete-btn:hover {
+    background-color: #d32f2f;
+}
