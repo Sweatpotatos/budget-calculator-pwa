@@ -1,5 +1,5 @@
 import BudgetCalculator from './budgetCalculator.js';
-import { db, collection, addDoc, getDocs, setDoc, doc } from './firebase.js';
+import { db, collection, addDoc, getDocs, setDoc, doc, onSnapshot } from './firebase.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const expenseForm = document.getElementById('expense-form');
@@ -227,5 +227,33 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         monthlyGoalForm.reset();
+    });
+
+    // Function to update the expense list UI
+    function updateExpenseListFromSnapshot(snapshot) {
+        expenseList.innerHTML = ''; // Clear existing entries
+
+        snapshot.forEach(docSnapshot => {
+            const expense = docSnapshot.data();
+            // Check if this document is still pending to be written to the server
+            const isPending = docSnapshot.metadata.hasPendingWrites;
+
+            const li = document.createElement('li');
+            li.textContent = `${expense.person} spent $${expense.amount.toFixed(2)} on ${expense.category} on ${expense.date}`;
+            // Append pending status if applicable:
+            if (isPending) {
+                li.textContent += ' - Pending';
+                li.style.color = 'orange'; // Use a visual indicator (e.g. orange text)
+            } else {
+                li.textContent += ' - Added Successfully';
+                li.style.color = 'green';
+            }
+            expenseList.appendChild(li);
+        });
+    }
+
+    // Set up a real-time listener on your "expenses" collection
+    onSnapshot(collection(db, "expenses"), (snapshot) => {
+        updateExpenseListFromSnapshot(snapshot);
     });
 });
